@@ -70,3 +70,35 @@ async def standings(
     data = await service.standings(group_by, data=date)
     data.pop("columns", None)
     return data
+
+
+@router.get("/skaters", name="api_skaters", tags=["players"])
+async def skaters(
+    args: TableArgs = Depends(table_args),
+    team: str | None = Query(None, description="Three-letter code, e.g. TOR"),
+    position: Position = "all",
+    report: str = Query(
+        "summary", description="See /api/v1/glossary for the list"),
+    limit: int = Query(50, ge=1, le=500),
+    service: StatsService = Depends(get_service),
+):
+    return _envelope(await service.skater_table(
+        season=args.season, game_type=args.game_type, sort=args.sort,
+        direction=args.direction, page=args.page, page_size=limit,
+        team=team or None, position=position, report=report,
+    ))
+
+
+@router.get("/goalies", name="api_goalies", tags=["players"])
+async def goalies(
+    args: TableArgs = Depends(table_args),
+    team: str | None = None,
+    report: str = "summary",
+    limit: int = Query(50, ge=1, le=500),
+    service: StatsService = Depends(get_service),
+):
+    return _envelope(await service.goalie_table(
+        season=args.season, game_type=args.game_type, sort=args.sort,
+        direction=args.direction, page=args.page, page_size=limit,
+        team=team or None, report=report,
+    ))
