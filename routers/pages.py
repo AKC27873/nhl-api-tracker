@@ -93,3 +93,73 @@ async def goalies(
                   endpoint="goalies", teams=teams, seasons=seasons,
                   positions=None, reports=K.GOALIE_REPORTS,
                   link_players=True, link_teams=False)
+
+
+@router.get("/teams", name="teams")
+async def teams(
+    request: Request,
+    args: TableArgs = Depends(table_args),
+    team: str | None = None,
+    report: str = "summary",
+        service: StatsService = Depends(get_service)):
+
+    table, seasons = await asyncio.gather(
+        service.team_table(
+            season=args.season, game_type=args.game_type, sort=args.sort,
+            direction=args.direction, page=args.page, page_size=32,
+            report=report,
+        ),
+        service.season_options(),
+    )
+    return render(request, "table.html", "teams", table=table, title="Teams",
+                  endpoint="teams", teams=teams, seasons=seasons, positions=None,
+                  reports=K.TEAM_REPORTS, link_players=False, link_teams=True)
+
+
+@router.get("/players/{player_id}", name="player")
+async def player(request: Request, player_id: int, args: TableArgs = Depends(table_args),
+                 log_season: int | None = None,
+                 service: StatsService = Depends(get_service)):
+    detail = await service.player_detail(player_id, season=log_season,
+                                         game_type=args.game_type)
+    return render(request, "player.html", None, **detail)
+
+
+@router.get("/search", name="search")
+async def search(request: Request, q: str = "", active: str = "",
+                 service: StatsService = Depends(get_service)):
+    query = q.strip()
+    results = await service.search(query, active_only=active == "1")
+    if len(results) == 1 and query:
+        return RedirectResponse(
+            str(request.url_for("player", player_id=results[0]["player_id"])),
+            status_code=302,
+        )
+    return render(request, "search.html", None, query=query, results=results)
+
+
+@router.get("/movers", name="movers")
+async def movers(
+    request: Request,
+    args: TableArgs = Depends(table_args),
+    kind: str = "skater",
+    stat: str | None = None,
+    since: str | None = None,
+    settings: Settings = Depends(get_settings),
+    store: SnapshotStore = Depends(get_store),
+):
+    if not settings.snapshots_enabled:
+        return render(request, "movers.html", "movers", enabled=False, kind="skater",
+                      stat="p", board={"rows": []}, stats=[], dates=[])
+
+    kind = kind if kind in MOVER_STATS else "skater"
+    stats = MOVER_STATS[kind]
+    stat = stat if stat in dict(stats) else stats[0][0]
+
+    board = await run_in_threadpool(store.movers, kind, args.season, args.game_type,
+                                    stat, 50, since)
+    dates = await run_in_threadpool(store.capture_dates, kind, args.season, args.game_type)
+    return render(request, "movers.html", "movers", enabled=True, board=board, kind=kind,
+                  stat=stat, stats=stats, stat_label=dict(
+                      stats)[stat], dates=dates,
+                  season=args.season, game_type=args.game_type)
