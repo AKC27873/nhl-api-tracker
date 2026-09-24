@@ -102,3 +102,49 @@ async def goalies(
         direction=args.direction, page=args.page, page_size=limit,
         team=team or None, report=report,
     ))
+
+
+@router.get("/team-stats", name="api_team_stats", tags=["teams"])
+async def team_stats(
+    args: TableArgs = Depends(table_args),
+    report: str = "summary",
+    limit: int = Query(50, ge=1, le=500),
+    service: StatsService = Depends(get_service),
+):
+    return _envelope(await service.team_table(
+        season=args.season, game_type=args.game_type, sort=args.sort,
+        direction=args.direction, page=args.page, page_size=limit,
+        report=report,
+    ))
+
+
+@router.get("/teams/{abbrev}", name="api_team", tags=["teams"])
+async def team(abbrev: str, args: TableArgs = Depends(table_args),
+               service: StatsService = Depends(get_service)):
+    detail = await service.team_details(abbrev, args.season, args.game_type)
+    for key in ("skater_columns", "goalies_columns", "team_columns"):
+        detail.pop(key, None)
+    return detail
+
+
+@router.get("/players/{player_id}", name="api_player", tags=["players"])
+async def player(player_id: int, args: TableArgs = Depends(table_args),
+                 log_season: int | None = None,
+                 service: StatsService = Depends(get_service)):
+    detail = await service.player_detail(player_id, season=log_season,
+                                         game_type=args.game_type)
+    detail.pop("columns", None)
+    return detail
+
+
+@router.get("/search", name="api_search", tags=["players"])
+async def search(q: str = Query(..., min_length=2), active: bool = False,
+                 service: StatsService = Depends(get_service)):
+    return {"data": await service.search(q, active_only=active)}
+
+
+@router.get("/leaders", name="api_leaders", tags=["players"])
+async def leaders(args: TableArgs = Depends(table_args),
+                  limit: int = Query(5, ge=1, le=50),
+                  service: StatsService = Depends(get_service)):
+    return await service.leaders(season=args.season, game_type=args.game_type, limit=limit)
