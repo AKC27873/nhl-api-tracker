@@ -148,3 +148,44 @@ async def leaders(args: TableArgs = Depends(table_args),
                   limit: int = Query(5, ge=1, le=50),
                   service: StatsService = Depends(get_service)):
     return await service.leaders(season=args.season, game_type=args.game_type, limit=limit)
+
+
+@router.get("/movers/{kind}", name="api_movers", tags=["history"])
+async def movers(
+    kind: Kind,
+    args: TableArgs = Depends(table_args),
+    stat: str | None = Query(
+        None, description="Row key to diff, e.g. p, g, w, saves"),
+    since: str | None = Query(
+        None, description="Capture date to compare against"),
+    limit: int = Query(50, ge=1, le=500),
+    store: SnapshotStore = Depends(get_store),
+):
+    stat = stat or ("points" if kind ==
+                    "team" else "p" if kind == "skater" else "w")
+    return await run_in_threadpool(store.movers, kind, args.season, args.game_type, stat, limit, since)
+
+
+@router.get("/history/{kind}/{entity_id}", name="api_history", tags=["history"])
+async def history(kind: Kind, entity_id: int, args: TableArgs = Depends(table_args),
+                  store: SnapshotStore = Depends(get_store)):
+    rows = await run_in_threadpool(store.history, kind, entity_id, args.season, args.game_type)
+    return {"data": rows}
+
+
+# Capturing the lines for today.
+@router.post("/snapshot", name="api_snapshot", tags=["history"])
+async def snapshot(
+    season: str | None = None,
+    game_type: int = Query(2, ge=2, le=3),
+    service: StatsService = Depends(get_service),
+    settings: Settings = Depends(get_settings),
+):
+    if not settings.snapshot_enabled:
+        raise HTTPException(409, "Snapshots are not enabled")
+
+
+@router.post("/cache/clear", name="api_cache_clear", tags=["meta"])
+async def clear_cache(service: StatsService = Depends(get_service)):
+    service.client.cache.clear()
+    return {"status": "cleared"}
