@@ -1,0 +1,96 @@
+{# Shared table pieces. Numbers right-aligned, names left, rank in the gutter. #}
+
+{% macro header(columns, endpoint=None, table=None) %}
+<thead>
+  <tr>
+    <th class="rank" scope="col"><abbr title="Rank">#</abbr></th>
+    {% for col in columns %}
+      {% set sorted_here = table and table.sort == col.key %}
+      {% set next_dir = 'ASC' if (sorted_here and table.direction == 'DESC') else ('ASC' if (not sorted_here and col.fmt == 'text') else 'DESC') %}
+      <th scope="col"
+          class="{{ 'text' if col.fmt == 'text' }} {{ 'sorted' if sorted_here }}"
+          {% if sorted_here %}
+            data-arrow="{{ '↑' if table.direction == 'ASC' else '↓' }}"
+            aria-sort="{{ 'ascending' if table.direction == 'ASC' else 'descending' }}"
+          {% endif %}
+          {% if col.title %}title="{{ col.title }}"{% endif %}>
+        {% if endpoint and col.sort %}
+          <a href="{{ url(endpoint, **query(request, sort=col.key, dir=next_dir, page=1)) }}">{{ col.label }}</a>
+        {% else %}
+          {{ col.label }}
+        {% endif %}
+      </th>
+    {% endfor %}
+  </tr>
+</thead>
+{% endmacro %}
+
+
+{% macro body(rows, columns, offset=0, link_players=False, link_teams=False) %}
+<tbody>
+  {% for row in rows %}
+    <tr {% if loop.first and offset == 0 %}class="leader"{% endif %}>
+      <td class="rank">{{ offset + loop.index }}</td>
+      {% for col in columns %}
+        {% if col.key == 'name' %}
+          <td class="text name">
+            {% if link_players and row.get('player_id') %}
+              <a href="{{ url('player', player_id=row.get('player_id')) }}">{{ row.get('name') }}</a>
+            {% elif link_teams and row.get('abbrev') %}
+              <a href="{{ url('team', abbrev=row.get('abbrev')) }}">{{ row.get('name') }}</a>
+            {% else %}
+              {{ row.get('name') or '—' }}
+            {% endif %}
+            {% if row.get('sweater') %}<span class="club"> #{{ row.get('sweater') }}</span>{% endif %}
+          </td>
+        {% elif col.key == 'team' %}
+          <td class="text">
+            {% set club = row.get('team') %}
+            {% if club and '/' not in club|string %}
+              <a href="{{ url('team', abbrev=club) }}">{{ club }}</a>
+            {% else %}
+              {{ club or '—' }}
+            {% endif %}
+          </td>
+        {% else %}
+          <td class="{{ 'text' if col.fmt == 'text' }}">{{ row.get(col.key) | stat(col.fmt) }}</td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+  {% else %}
+    <tr><td class="text" colspan="{{ columns|length + 1 }}">No rows for this filter.</td></tr>
+  {% endfor %}
+</tbody>
+{% endmacro %}
+
+
+{% macro simple_table(rows, columns, caption=None, link_players=False, link_teams=False) %}
+<div class="table-scroll">
+  <table class="stats">
+    {% if caption %}<caption>{{ caption }}</caption>{% endif %}
+    {{ header(columns) }}
+    {{ body(rows, columns, link_players=link_players, link_teams=link_teams) }}
+  </table>
+</div>
+{% endmacro %}
+
+
+{% macro season_picker(seasons, selected) %}
+<label>Season
+  <select name="season">
+    {% for s in seasons %}
+      <option value="{{ s.id }}" {% if s.id == selected %}selected{% endif %}>{{ s.label }}</option>
+    {% endfor %}
+  </select>
+</label>
+{% endmacro %}
+
+
+{% macro game_type_picker(selected) %}
+<label>Games
+  <select name="game_type">
+    <option value="2" {% if selected == 2 %}selected{% endif %}>Regular season</option>
+    <option value="3" {% if selected == 3 %}selected{% endif %}>Playoffs</option>
+  </select>
+</label>
+{% endmacro %}

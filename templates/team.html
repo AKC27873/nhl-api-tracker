@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+
+{% block title %}{{ standing.name if standing else abbrev }} — NHL stat tracker{% endblock %}
+
+{% block content %}
+<div class="profile">
+  {% if standing and standing.logo %}
+    <img class="headshot" src="{{ standing.logo }}" alt="" width="96" height="96">
+  {% endif %}
+  <div class="who">
+    <h1>{{ standing.name if standing else abbrev }}</h1>
+    {% if standing %}
+      <dl class="facts">
+        <div><dt>Record</dt><dd>{{ standing.w }}-{{ standing.l }}-{{ standing.otl }}</dd></div>
+        <div><dt>Points</dt><dd>{{ standing.points }}</dd></div>
+        <div><dt>Goal differential</dt><dd>{{ standing.diff | stat('signed') }}</dd></div>
+        <div><dt>Last ten</dt><dd>{{ standing.l10 }}</dd></div>
+        <div><dt>Streak</dt><dd>{{ standing.streak }}</dd></div>
+        <div><dt>Division</dt><dd>{{ standing.division }}</dd></div>
+      </dl>
+    {% endif %}
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <label>Club
+    <select name="team">
+      {% for t in all_teams %}
+        <option value="{{ t.abbrev }}" {% if t.abbrev == abbrev %}selected{% endif %}>{{ t.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {{ m.season_picker(seasons, season) }}
+  {{ m.game_type_picker(game_type) }}
+  <button type="submit">Apply filters</button>
+</form>
+
+{% if team_line %}
+  <h2>Team totals</h2>
+  {{ m.simple_table([team_line], team_columns) }}
+{% endif %}
+
+<h2>Skaters</h2>
+{{ m.simple_table(skaters, skater_columns, link_players=true,
+                  caption='Sorted by points. ' ~ skaters|length ~ ' skaters.') }}
+
+<h2>Goalies</h2>
+{{ m.simple_table(goalies, goalie_columns, link_players=true,
+                  caption='Sorted by games played.') }}
+{% endblock %}

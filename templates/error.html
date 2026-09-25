@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}{{ heading }} — NHL stat tracker{% endblock %}
+
+{% block content %}
+<div class="empty">
+  <h2>{{ heading }}</h2>
+  <p>{{ detail }}</p>
+  {% if hint %}<p>{{ hint }}</p>{% endif %}
+  <p><a href="{{ url('index') }}">Back to the leaders</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+
+{% block title %}Standings — NHL stat tracker{% endblock %}
+
+{% block content %}
+<h1>Standings</h1>
+<p class="lede">As of {{ as_of }}.</p>
+
+<form class="filters" method="get">
+  <label>Group by
+    <select name="group_by">
+      {% for option in ['division', 'conference', 'league'] %}
+        <option value="{{ option }}" {% if group_by == option %}selected{% endif %}>{{ option|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>On date
+    <input type="date" name="date" value="{{ request.query_params.get('date', '') }}">
+  </label>
+  <button type="submit">Show standings</button>
+</form>
+
+{% for group, rows in groups.items() %}
+  <h2>{{ group }}</h2>
+  {{ m.simple_table(rows, columns, link_teams=true) }}
+{% endfor %}
+{% endblock %}

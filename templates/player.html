@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+
+{% block title %}{{ profile.name }} — NHL stat tracker{% endblock %}
+
+{% block content %}
+<div class="profile">
+  {% if profile.headshot %}
+    <img class="headshot" src="{{ profile.headshot }}" alt="" width="96" height="96">
+  {% endif %}
+  <div class="who">
+    <h1>{{ profile.name }}</h1>
+    <p class="lede">
+      {% if profile.sweater %}#{{ profile.sweater }} · {% endif %}{{ profile.position }}
+      {% if profile.team %} · <a href="{{ url('team', abbrev=profile.team) }}">{{ profile.team_name or profile.team }}</a>{% endif %}
+      {% if not profile.is_active %} · no longer active{% endif %}
+    </p>
+    <dl class="facts">
+      <div><dt>{{ 'Catches' if profile.is_goalie else 'Shoots' }}</dt><dd>{{ profile.shoots or '—' }}</dd></div>
+      <div><dt>Height</dt><dd>{{ profile.height_in | height }}</dd></div>
+      <div><dt>Weight</dt><dd>{{ profile.weight_lb or '—' }} lb</dd></div>
+      <div><dt>Born</dt><dd>{{ profile.birth_date or '—' }}</dd></div>
+      <div><dt>Birthplace</dt><dd>{{ [profile.birth_city, profile.birth_state, profile.birth_country] | select | join(', ') }}</dd></div>
+      <div><dt>Draft</dt><dd>{{ profile.draft }}</dd></div>
+    </dl>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  {{ m.game_type_picker(game_type) }}
+  <label>Game log season
+    <select name="log_season">
+      {% for s in seasons | selectattr('league', 'equalto', 'NHL') | unique(attribute='season') %}
+        <option value="{{ s.season }}" {% if s.season == log_season %}selected{% endif %}>{{ season_label(s.season) }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">Show</button>
+</form>
+
+<h2>Career totals</h2>
+{{ m.simple_table([career], columns) }}
+
+<h2>Season by season</h2>
+<div class="table-scroll">
+  <table class="stats">
+    <caption>{{ game_types[game_type] }}, every league. Newest first.</caption>
+    <thead>
+      <tr>
+        <th class="rank" scope="col"><abbr title="Rank">#</abbr></th>
+        <th class="text" scope="col">Season</th>
+        <th class="text" scope="col">League</th>
+        {% for col in columns if col.key not in ('name', 'position') %}
+          <th scope="col" class="{{ 'text' if col.fmt == 'text' }}"
+              {% if col.title %}title="{{ col.title }}"{% endif %}>{{ col.label }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in seasons %}
+        <tr>
+          <td class="rank">{{ loop.index }}</td>
+          <td class="text name">{{ season_label(row.season) }}</td>
+          <td class="text">{{ row.league or '—' }}</td>
+          {% for col in columns if col.key not in ('name', 'position') %}
+            <td class="{{ 'text' if col.fmt == 'text' }}">{{ row.get(col.key) | stat(col.fmt) }}</td>
+          {% endfor %}
+        </tr>
+      {% else %}
+        <tr><td class="text" colspan="{{ columns|length + 2 }}">No season totals reported.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Game log — {{ season_label(log_season) }}</h2>
+<div class="table-scroll">
+  <table class="stats">
+    <caption>{{ games|length }} games. Newest first.</caption>
+    <thead>
+      <tr>
+        <th class="rank" scope="col"><abbr title="Rank">#</abbr></th>
+        <th class="text" scope="col">Date</th>
+        <th class="text" scope="col">Opponent</th>
+        {% if is_goalie %}
+          <th scope="col">Dec</th><th scope="col">SA</th><th scope="col">SV</th>
+          <th scope="col">GA</th><th scope="col">SV%</th><th scope="col">TOI</th>
+        {% else %}
+          <th scope="col">G</th><th scope="col">A</th><th scope="col">P</th>
+          <th scope="col">+/-</th><th scope="col">S</th><th scope="col">PIM</th>
+          <th scope="col">TOI</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for game in games %}
+        <tr>
+          <td class="rank">{{ loop.index }}</td>
+          <td class="text name">{{ game.date }}</td>
+          <td class="text">{{ 'vs' if game.home_road == 'H' else '@' }} {{ game.opponent }}</td>
+          {% if is_goalie %}
+            <td>{{ game.decision or '—' }}</td>
+            <td>{{ game.shots_against | stat('int') }}</td>
+            <td>{{ game.saves | stat('int') }}</td>
+            <td>{{ game.goals_against | stat('int') }}</td>
+            <td>{{ game.sv_pct | stat('float3') }}</td>
+            <td>{{ game.toi }}</td>
+          {% else %}
+            <td>{{ game.g | stat('int') }}</td>
+            <td>{{ game.a | stat('int') }}</td>
+            <td>{{ game.p | stat('int') }}</td>
+            <td>{{ game.plus_minus | stat('signed') }}</td>
+            <td>{{ game.shots | stat('int') }}</td>
+            <td>{{ game.pim | stat('int') }}</td>
+            <td>{{ game.toi }}</td>
+          {% endif %}
+        </tr>
+      {% else %}
+        <tr><td class="text" colspan="10">No games in this season and game type.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="lede">As JSON:
+  <a href="{{ url('api_player', player_id=profile.player_id) }}"><code>{{ url('api_player', player_id=profile.player_id) }}</code></a>
+</p>
+{% endblock %}

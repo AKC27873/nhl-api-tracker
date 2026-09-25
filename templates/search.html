@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}{{ query or 'Search' }} — NHL stat tracker{% endblock %}
+
+{% block content %}
+<h1>{% if query %}Players matching “{{ query }}”{% else %}Find a player{% endif %}</h1>
+
+{% if not query %}
+  <div class="empty">
+    <h2>Type a name up top</h2>
+    <p>Search covers active and retired players. Partial names work —
+       “mcda”, “bobro”, “ovech”.</p>
+  </div>
+{% elif not results %}
+  <div class="empty">
+    <h2>No player by that name</h2>
+    <p>Check the spelling, or try just the surname. The league's search
+       matches on the full name as it's spelled on the roster.</p>
+  </div>
+{% else %}
+  <p class="lede">{{ results|length }} match{{ '' if results|length == 1 else 'es' }}.</p>
+  <div class="table-scroll">
+    <table class="stats">
+      <thead>
+        <tr>
+          <th class="rank" scope="col"><abbr title="Rank">#</abbr></th>
+          <th class="text" scope="col">Player</th>
+          <th scope="col">Pos</th>
+          <th class="text" scope="col">Team</th>
+          <th scope="col">No.</th>
+          <th class="text" scope="col">Born</th>
+          <th class="text" scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in results %}
+          <tr>
+            <td class="rank">{{ loop.index }}</td>
+            <td class="text name">
+              <a href="{{ url('player', player_id=row.player_id) }}">{{ row.name }}</a>
+            </td>
+            <td>{{ row.position or '—' }}</td>
+            <td class="text">
+              {% if row.team %}<a href="{{ url('team', abbrev=row.team) }}">{{ row.team }}</a>{% else %}—{% endif %}
+            </td>
+            <td>{{ row.sweater or '—' }}</td>
+            <td class="text">{{ [row.birth_city, row.birth_country] | select | join(', ') or '—' }}</td>
+            <td class="text">{{ 'Active' if row.active else 'Retired · last played ' ~ (row.last_season | season) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

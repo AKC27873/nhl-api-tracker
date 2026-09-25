@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Movers — NHL stat tracker{% endblock %}
+
+{% block content %}
+<h1>Movers</h1>
+
+{% if not enabled %}
+  <div class="empty">
+    <h2>Snapshots are switched off</h2>
+    <p>Set <code>SNAPSHOTS_ENABLED=1</code> and restart to start recording
+       daily captures.</p>
+  </div>
+{% elif not board.rows %}
+  <div class="empty">
+    <h2>Not enough history yet</h2>
+    <p>This board compares the two most recent captures. Take one now and
+       another tomorrow, and it fills in.</p>
+    <pre class="snippet">flask --app app init-db
+flask --app app snapshot
+
+# then daily, from cron:
+0 9 * * *  cd /srv/nhl-tracker &amp;&amp; .venv/bin/flask --app app snapshot</pre>
+    {% if board.latest %}<p>Captures held so far: {{ dates | join(', ') }}</p>{% endif %}
+  </div>
+{% else %}
+  <p class="lede">Change between {{ board.previous }} and {{ board.latest }}.</p>
+
+  <form class="filters" method="get">
+    <label>Group
+      <select name="kind">
+        {% for option in ['skater', 'goalie', 'team'] %}
+          <option value="{{ option }}" {% if kind == option %}selected{% endif %}>{{ option|capitalize }}s</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Stat
+      <select name="stat">
+        {% for key, label in stats %}
+          <option value="{{ key }}" {% if stat == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Compare against
+      <select name="since">
+        {% for d in dates if d != board.latest %}
+          <option value="{{ d }}" {% if board.previous == d %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <input type="hidden" name="season" value="{{ season }}">
+    <input type="hidden" name="game_type" value="{{ game_type }}">
+    <button type="submit">Show movers</button>
+  </form>
+
+  <div class="table-scroll">
+    <table class="stats">
+      <caption>{{ stat_label }} gained since {{ board.previous }}.</caption>
+      <thead>
+        <tr>
+          <th class="rank" scope="col"><abbr title="Rank">#</abbr></th>
+          <th class="text" scope="col">{{ kind|capitalize }}</th>
+          <th class="text" scope="col">Team</th>
+          <th scope="col">GP</th>
+          <th scope="col">Was</th>
+          <th scope="col">Now</th>
+          <th scope="col">+{{ stat_label }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in board.rows %}
+          <tr>
+            <td class="rank">{{ loop.index }}</td>
+            <td class="text name">
+              {% if kind == 'team' %}
+                <a href="{{ url('team', abbrev=row.abbrev) }}">{{ row.name }}</a>
+              {% else %}
+                <a href="{{ url('player', player_id=row.player_id) }}">{{ row.name }}</a>
+              {% endif %}
+            </td>
+            <td class="text">{{ row.team or row.abbrev or '—' }}</td>
+            <td>{{ row.games_played | stat('int') }}</td>
+            <td>{{ row.before | stat('int') }}</td>
+            <td>{{ row.get(stat) | stat('int') }}</td>
+            <td class="delta-up">{{ row.delta | stat('signed') }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

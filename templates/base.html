@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}NHL stat tracker{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url('static', path='css/app.css') }}">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+
+<header class="masthead">
+  <a class="wordmark" href="{{ url('index') }}">NHL stat tracker</a>
+  <form class="find" action="{{ url('search') }}" method="get" role="search">
+    <label class="visually-hidden" for="q">Find a player</label>
+    <input id="q" name="q" type="search" placeholder="Find a player"
+           value="{{ request.query_params.get('q', '') }}" autocomplete="off">
+    <button type="submit">Find</button>
+  </form>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  {% set tabs = [
+    ('index',     'Leaders'),
+    ('standings', 'Standings'),
+    ('skaters',   'Skaters'),
+    ('goalies',   'Goalies'),
+    ('teams',     'Teams'),
+    ('movers',    'Movers'),
+  ] %}
+  {% for endpoint, label in tabs %}
+    <a href="{{ url(endpoint) }}"
+       {% if active == endpoint %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="colophon">
+  <p>Data from the NHL's public endpoints (api-web.nhle.com and
+     api.nhle.com/stats/rest). Neither is documented or supported by the
+     league, and both change without notice.</p>
+  <p>Same data as JSON under /api/v1 — browse it at <a href="/docs">/docs</a>.</p>
+</footer>
+
+</body>
+</html>

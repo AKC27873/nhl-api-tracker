@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+
+{% block title %}Leaders — NHL stat tracker{% endblock %}
+
+{% block content %}
+<h1>{{ season_label(season) }} leaders</h1>
+<p class="lede">{{ game_types[game_type] }}. Updated whenever you reload — responses are cached
+   for a few minutes so the league's servers aren't hammered.</p>
+
+{% macro board(title, entries, fmt) %}
+<div class="board">
+  <h2>{{ title }}</h2>
+  <ol>
+    {% for entry in entries %}
+      <li>
+        <span class="who">
+          <a href="{{ url('player', player_id=entry.id) }}">{{ entry.firstName.default }} {{ entry.lastName.default }}</a>
+          <span class="club">{{ entry.teamAbbrev }}</span>
+        </span>
+        <span class="value">{{ entry.value | stat(fmt) }}</span>
+      </li>
+    {% else %}
+      <li><span class="who">Nothing reported yet this season.</span></li>
+    {% endfor %}
+  </ol>
+</div>
+{% endmacro %}
+
+<div class="grid">
+  {{ board('Points', leaders.skaters.points, 'int') }}
+  {{ board('Goals', leaders.skaters.goals, 'int') }}
+  {{ board('Assists', leaders.skaters.assists, 'int') }}
+  {{ board('Goalie wins', leaders.goalies.wins, 'int') }}
+  {{ board('Save percentage', leaders.goalies.savePctg, 'float3') }}
+  {{ board('Goals against average', leaders.goalies.goalsAgainstAverage, 'float2') }}
+</div>
+
+<h2>Standings</h2>
+{% for group, rows in standings.groups.items() %}
+  <h3>{{ group }}</h3>
+  {{ m.simple_table(rows[:8], standings.columns, link_teams=true) }}
+{% endfor %}
+<p class="pager"><a href="{{ url('standings') }}">Full standings</a></p>
+{% endblock %}

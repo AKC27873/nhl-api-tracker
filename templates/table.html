@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+
+{% block title %}{{ title }} — NHL stat tracker{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<p class="lede">{{ season_label(table.season) }} {{ game_types[table.game_type]|lower }},
+   sorted by {{ table.sort }} {{ 'ascending' if table.direction == 'ASC' else 'descending' }}.
+   Click any column head to sort by it.</p>
+
+<form class="filters" method="get">
+  {{ m.season_picker(seasons, table.season) }}
+  {{ m.game_type_picker(table.game_type) }}
+
+  {% if teams %}
+    <label>Team
+      <select name="team">
+        <option value="">Every team</option>
+        {% for t in teams %}
+          <option value="{{ t.abbrev }}" {% if table.team == t.abbrev %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  {% endif %}
+
+  {% if positions %}
+    <label>Position
+      <select name="position">
+        {% for p in positions %}
+          <option value="{{ p }}" {% if table.position == p %}selected{% endif %}>{{ p|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  {% endif %}
+
+  <label>Report
+    <select name="report">
+      {% for r in reports %}
+        <option value="{{ r }}" {% if table.report == r %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <input type="hidden" name="sort" value="{{ table.sort }}">
+  <input type="hidden" name="dir" value="{{ table.direction }}">
+  <button type="submit">Apply filters</button>
+</form>
+
+<div class="table-scroll">
+  <table class="stats">
+    {{ m.header(table.columns, endpoint, table) }}
+    {{ m.body(table.rows, table.columns,
+              offset=(table.page - 1) * table.page_size,
+              link_players=link_players,
+              link_teams=link_teams|default(false)) }}
+  </table>
+</div>
+
+<nav class="pager" aria-label="Pagination">
+  {% if table.page > 1 %}
+    <a href="{{ url(endpoint, **query(request, page=table.page - 1)) }}">← Previous</a>
+  {% endif %}
+  {% if table.page < table.pages %}
+    <a href="{{ url(endpoint, **query(request, page=table.page + 1)) }}">Next →</a>
+  {% endif %}
+  <span class="count">Page {{ table.page }} of {{ table.pages }} · {{ '{:,}'.format(table.total) }} rows</span>
+</nav>
+
+{% set api_map = {'skaters': 'api_skaters',
+                  'goalies': 'api_goalies',
+                  'teams': 'api_team_stats'} %}
+<p class="lede">Same query as JSON:
+  <a href="{{ url(api_map[endpoint], **query(request)) }}"><code>{{ url(api_map[endpoint], **query(request)) }}</code></a>
+</p>
+{% endblock %}
